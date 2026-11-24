@@ -1,0 +1,5 @@
+{
+  "kind": "single-knob",
+  "note": "venue B (Pico 2 on pi-ci-1), fth run --unsealed, zephyr harness f30f6d8, run dry-4, planted {'L6-1': 'known_packet_requested'}",
+  "plan": "plans/tpk-pool/plan.json"
+}

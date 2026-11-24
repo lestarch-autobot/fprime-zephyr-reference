@@ -1,0 +1,39 @@
+....F.                                                                   [100%]
+=================================== FAILURES ===================================
+__________________________________ test_L6_1 ___________________________________
+
+window = <function window.<locals>._window at 0x7ffeddf32160>
+send = <bound method Sender.send of <fth.pytest_plugin.Sender object at 0x7ffeddd07380>>
+bench = <fth.pytest_plugin.Bench object at 0x7ffeddd6d6e0>
+check = <function check.<locals>._check at 0x7ffeddf32200>
+require = <function require.<locals>._require at 0x7ffeddf32340>
+
+    def test_L6_1(window, send, bench, check, require):
+>       with window(50, 51):
+             ^^^^^^^^^^^^^^
+
+/home/devin/tpk-campaign/zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/test_L6_1.py:9: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/contextlib.py:148: in __exit__
+    next(self.gen)
+/home/devin/tpk-campaign/fth/fth/pytest_plugin.py:1131: in _window
+    _judge(wc)
+/home/devin/tpk-campaign/fth/fth/pytest_plugin.py:1159: in _judge
+    checks.raise_failures()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <fth.checks.TestChecks object at 0x7ffeddd39810>
+
+    def raise_failures(self) -> None:
+        if self.failed:
+            self.raised = True
+>           raise CheckFailures(self.failed)
+E           fth.checks.CheckFailures: check failed: event cmdDisp.OpCodeError count == 1 — seen count=0
+E           check failed: event tlmSend.PacketNotFound(packetId=999) count == 1 — seen count=0
+E           check failed: event tlmSend.PacketSent count == 0 — seen count=1 (L91)
+
+/home/devin/tpk-campaign/fth/fth/checks.py:275: CheckFailures
+=========================== short test summary info ============================
+FAILED ../../home/devin/tpk-campaign/zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/test_L6_1.py::test_L6_1
+1 failed, 5 passed in 0.25s
+

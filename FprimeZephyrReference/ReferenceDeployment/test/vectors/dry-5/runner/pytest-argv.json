@@ -1,0 +1,23 @@
+[
+ "/home/devin/tpk-campaign/venv/bin/python3",
+ "-P",
+ "-m",
+ "pytest",
+ "zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool",
+ "-p",
+ "fth.pytest_plugin",
+ "-q",
+ "--junitxml=runs/dry-5/runner/junit.xml",
+ "-o",
+ "junit_family=xunit1",
+ "--fth-plan=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/plan.json",
+ "--fth-run-dir=runs/dry-5",
+ "--fth-manifest=manifest.json",
+ "--fth-bench=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/bench-pico2.json",
+ "--fth-phase=dev",
+ "--fth-plant=L7-1=final_packets_held",
+ "--rootdir=/home/devin/tpk-campaign/zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool",
+ "--confcutdir=/home/devin/tpk-campaign/zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool",
+ "-c",
+ "/dev/null"
+]

@@ -1,0 +1,5 @@
+{
+  "kind": "clean",
+  "note": "venue B (Pico 2 on pi-ci-1), fth run --unsealed, zephyr harness f30f6d8, run dry-1",
+  "plan": "plans/tpk-pool/plan.json"
+}

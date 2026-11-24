@@ -1,0 +1,44 @@
+.....F                                                                   [100%]
+=================================== FAILURES ===================================
+__________________________________ test_L7_1 ___________________________________
+
+window = <function window.<locals>._window at 0x7fff5bac87c0>
+send = <bound method Sender.send of <fth.pytest_plugin.Sender object at 0x7fff5b887380>>
+bench = <fth.pytest_plugin.Bench object at 0x7fff5b8b9810>
+check = <function check.<locals>._check at 0x7fff5bac94e0>
+require = <function require.<locals>._require at 0x7fff5babea20>
+fth_plan = Plan(path=PosixPath('/home/devin/tpk-campaign/zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/plan.js... of the packetizer's storage).", 'knobs': ['final_packets_held']}, human_step='', run_in=('dev', 'rfr'))], warnings=[])
+
+    def test_L7_1(window, send, bench, check, require, fth_plan):
+        with window(59, 60):  # S: setup
+            require("STD")
+            check("event tlmSend.PacketNotFound count == 0")
+            send("tlmSend.CLEAR_PACKET_OVERRIDE", ["REALTIME", 60])
+            send("tlmSend.CLEAR_PACKET_OVERRIDE", ["REALTIME", 61])
+            bench.wait(2.5)  # wait 2 ticks (1 s tick) with half a tick of margin
+>       with window(60, 61):  # W: measurement
+             ^^^^^^^^^^^^^^
+
+/home/devin/tpk-campaign/zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/test_L7_1.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.13/contextlib.py:148: in __exit__
+    next(self.gen)
+/home/devin/tpk-campaign/fth/fth/pytest_plugin.py:1131: in _window
+    _judge(wc)
+/home/devin/tpk-campaign/fth/fth/pytest_plugin.py:1159: in _judge
+    checks.raise_failures()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <fth.checks.TestChecks object at 0x7fff5b944710>
+
+    def raise_failures(self) -> None:
+        if self.failed:
+            self.raised = True
+>           raise CheckFailures(self.failed)
+E           fth.checks.CheckFailures: check failed: cmdDisp.CommandsDispatched tracks cmdDisp.OpCodeDispatched: >= 2 increasing samples, each step == dispatches between them, a sample within 2 ticks after each dispatch — seen 0 samples, need 2
+
+/home/devin/tpk-campaign/fth/fth/checks.py:275: CheckFailures
+=========================== short test summary info ============================
+FAILED ../../home/devin/tpk-campaign/zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/test_L7_1.py::test_L7_1
+1 failed, 5 passed in 0.26s
+
