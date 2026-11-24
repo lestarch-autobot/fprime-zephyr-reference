@@ -5,6 +5,7 @@
 T=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
 A="--manifest manifest.json --plan $T/plan.json --bench $T/bench-pico2.json --tests $T"
 n=${2:-}
+mkdir -p runs
 case ${1:-all} in
 run)
   fuser /dev/pico2 /dev/pico2-probe && { echo "bench held, stop"; exit 9; }
@@ -44,5 +45,5 @@ all)
     grep -a -h "MATCH" runs/dry-$n/record/raw/flash.log | cut -c1-100
   done
   rm -rf vectors && python3 $T/../../campaign/mk-vectors.py runs $T vectors "venue B (Pico 2), fth run --unsealed, zephyr harness $(git -C zref rev-parse --short HEAD)" && cp manifest.json vectors/
-  python3 $T/venue/check-vectors.py vectors; echo "vector rule rc=$?";;
+  python3 $T/../../campaign/check-vectors.py vectors; echo "vector rule rc=$?";;
 esac

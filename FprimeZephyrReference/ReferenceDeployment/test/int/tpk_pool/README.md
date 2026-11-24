@@ -21,13 +21,128 @@ with `lib/fprime` at the unit under test. It is both the image source and the ha
 ```sh
 (cd zref && fprime-util generate -DBOARD=rpi_pico2/rp2350a/m33 && fprime-util build)
 T=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
-I=zref/build-fprime-automatic-zephyr/zephyr/zephyr.bin
+I=zref/build-artifacts/zephyr.bin
 fth manifest --uut zref/lib/fprime --harness zref --plan $T/plan.json --menu $T/faults-menu.json --bench $T/bench-pico2.json --tests $T --image ReferenceDeployment=$I -o manifest.json
 ```
 
 Venue A (`Ref` on a Linux host) keeps the same plan and stimulus files beside the `Ref` deployment
 (`lestarch-autobot/fprime`, same branch name, `TestDeploymentsProject/Ref/test/int/tpk_pool`);
 `diff -r` of the two directories shows only the venue files (`bench-*.json`, `venue/`, the venue part of this file).
+
+## Complete procedure (venue B, from a new machine)
+
+Two machines. The **build host** (Linux x86_64, about 10 GB free) builds the image. The **bench host** is
+`pi-ci-1` (aarch64, user `devin`; address and key come from the bench owner), with the Pico 2 console at
+`/dev/pico2`, the debug probe (serial `E6647C74036F8730`) at `/dev/pico2-probe`, `openocd` 0.12 in `/usr/bin`,
+and user `devin` in `dialout` and `plugdev` with `sudo -n ls` allowed. The bench host is shared with a GitHub
+Actions runner that flashes the same board: read "Whole plan on the bench" below before the first run, and
+never stop or touch the runner.
+
+1. Build host: clone and build (`west` fetches the Zephyr workspace and the ARM SDK; about 30 minutes).
+
+```sh
+mkdir tpk-campaign && cd tpk-campaign
+git clone -b tlm-packetizer-membership-pool-harness https://github.com/lestarch-autobot/fprime-zephyr-reference zref
+cd zref
+git submodule update --init lib/fprime-zephyr lib/zephyr-workspace/zephyr lib/fprime
+(cd lib/fprime && git submodule update --init --recursive && git rev-parse HEAD)     # 14dc2e3077b1a5b108a067805abac48c1f765be9
+python3 -m venv ../zvenv && . ../zvenv/bin/activate && pip install -r requirements.txt
+(cd lib/zephyr-workspace && west update -n -o=--depth=1 && west zephyr-export)
+(cd lib/zephyr-workspace/zephyr && west sdk install -t arm-zephyr-eabi)               # into ~/zephyr-sdk-<version>
+export ZEPHYR_SDK_INSTALL_DIR=$(ls -d ~/zephyr-sdk-* | tail -1)
+git status --short                                 # empty: the image carries `git describe` of this tree
+fprime-util generate -DBOARD=rpi_pico2/rp2350a/m33 && fprime-util build -j4 2>&1 | grep "needs MAX_PACKETIZER"
+git describe --tags --always; ls -l build-artifacts/zephyr.bin; sha256sum build-artifacts/zephyr.bin
+cd ..
+```
+
+Expected from the build (the sizing check of the unit under test):
+
+```text
+Packet set ReferenceDeploymentPackets needs MAX_PACKETIZER_MEMBERSHIPS >= 31
+Packet set ReferenceDeploymentPackets needs MAX_PACKETIZER_CHANNELS >= 30 (30 listed in packets; 42 omitted not counted, FPRIME_TLM_PACKETIZER_OMIT_LIST is OFF)
+```
+
+2. Copy the built tree to the bench host, with its `.git` directories and `build-artifacts/` (image and
+   dictionary), without the Zephyr workspace:
+
+```sh
+rsync -a --delete --exclude build-fprime-automatic-zephyr --exclude lib/zephyr-workspace --exclude .west zref devin@<pi-ci-1>:tpk-campaign-run/
+```
+
+3. Bench host: tools and manifest. All further commands are run on the bench host from `~/tpk-campaign-run`.
+
+```sh
+cd ~/tpk-campaign-run && mkdir -p runs
+python3 -m venv venv && . venv/bin/activate
+pip install fprime-gds==4.4.0 pytest git+https://github.com/lestarch-autobot/fprime-testing-harness@v0.1.29   # fth; commit fb09828
+T=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
+fth verify-plan $T/plan.json --tests $T          # plan ok: ... 6 tests, 1 helpers, 4 planted faults, 1 waived requirements, 0 warnings
+fth verify-stimulus $T/plan.json --tests $T      # 6 lines MATCH, 0 FAIL
+pytest -q zref/FprimeZephyrReference/ReferenceDeployment/test/kat      # 30 passed
+fth manifest --uut zref/lib/fprime --harness zref --plan $T/plan.json --menu $T/faults-menu.json --bench $T/bench-pico2.json --tests $T --image ReferenceDeployment=zref/build-artifacts/zephyr.bin -o manifest.json
+```
+
+   `fth manifest` refuses an image that does not carry the describe strings of both trees.
+
+4. Save the image the board holds, if it is to be put back and no saved copy exists. The image the board held
+   before this campaign's first flash is on the bench host:
+   `/home/devin/tpk-campaign/saved/pico2-before.bin` (4194304 bytes from 0x10000000, SHA-256
+   `269aed1a1f73a4a0e14db43b18d430a658159e036e0615ed8893ee79b31c266a`). The CI runner reflashes the board on
+   every job, so the board may hold another image by now.
+
+5. The five dry runs under the guard, audit, replay, vector set and vector rule: one script. Each run flashes
+   the image through the probe and reads it back (MATCH) before the first test, so there is no separate flash
+   step. The planted fault of each run is named only in the script (dry-2 `L2-1=first_packet_also_held`,
+   dry-3 `L2-2=second_packet_also_held`, dry-4 `L6-1=known_packet_requested`, dry-5 `L7-1=final_packets_held`,
+   each as `fth run --unsealed --plant <test>=<fault>`). A run whose guard trips is bench-invalid: the script
+   keeps its record under `runs/invalid/`, waits for the worker to exit and runs again, at most 3 attempts.
+   About 25 minutes.
+
+```sh
+sh zref/FprimeZephyrReference/ReferenceDeployment/test/campaign/dry-runs.sh all 2>&1 | tee venue-b.out
+cat runs/dry-?.guard.out                           # per run: one "GUARD pre" and one "GUARD post: ok" line
+```
+
+Expected in `venue-b.out`, per run (`<V>` is the check name `cmdDisp.CommandsDispatched tracks
+cmdDisp.OpCodeDispatched: >= 2 increasing samples, each step == dispatches between them, a sample within 2 ticks
+after each dispatch`; record ids differ from run to run):
+
+```text
+GUARD pre: no worker; newest worker log Worker_<time>-utc.log; console on usb 3-1.1.1
+run dry-1: record <id> -> runner/verdicts.json (pytest exit 0)
+dry-1 rc=0
+fuser-after-rc=1
+GUARD post: ok (no worker; newest worker log Worker_<time>-utc.log; 2 re-enumerations, all own)
+  L0-1 PASS []          (and L0-2, L2-1, L2-2, L6-1, L7-1: PASS [])
+  audit rc=0 FAILED-lines=0 DIVERGENCE=0
+  replay equal
+MATCH: flash holds zref/build-artifacts/zephyr.bin (310420 bytes)
+dry-2: pytest exit 1; L2-1 FAIL ['<V>'], the five others PASS []; audit rc=1 FAILED-lines=3 DIVERGENCE=0; replay equal
+dry-3: as dry-2 with L2-2 FAIL ['<V>']
+dry-4: L6-1 FAIL ['event cmdDisp.OpCodeError count == 1', 'event tlmSend.PacketNotFound(packetId=999) count == 1', 'event tlmSend.PacketSent count == 0']
+dry-5: as dry-2 with L7-1 FAIL ['<V>']
+vectors: 5 lines "ok", one per vector
+vector rule rc=0
+```
+
+   The audit of a planted run ends FAILED by the tool's design (`audit rc=1`, two failed steps: "no development
+   plant in the record" and "replay sent exactly the recorded commands"); its runner-versus-replay table must
+   still show no DIVERGENCE. Only the clean run's audit ends ok (`runs/dry-1/auditor/`, table
+   `diff-runner-replay.md`). `fth dev-campaign` is not part of this venue (no on-target coverage).
+
+6. Put the saved image back, under the same guard, with read-back:
+
+```sh
+sh zref/FprimeZephyrReference/ReferenceDeployment/test/campaign/restore-pico2.sh /home/devin/tpk-campaign/saved/pico2-before.bin
+```
+
+Expected: `GUARD pre: ...`, `MATCH: flash holds /home/devin/tpk-campaign/saved/pico2-before.bin (4194304 bytes)`,
+two SHA-256 lines both `269aed1a…266a`, `GUARD post: ok (... 2 re-enumerations, all own)`. Nothing of the
+campaign may be left running on the bench host afterwards (`fuser /dev/pico2 /dev/pico2-probe` prints nothing).
+
+`restore-pico2.sh` and the `mkdir` of `dry-runs.sh` were written for this procedure from the commands used for
+the committed evidence; the scripts in this form had not been run on the bench when they were committed.
 
 ## Static checks (no bench)
 
@@ -102,15 +217,27 @@ fth audit --run-dir runs/dry-1 --manifest manifest.json --plan $T/plan.json --be
 `../../vectors/` holds the vector set of this venue: one clean record and one record per planted fault applied
 alone, as the dry runs made them (`vector.json`, `record/` with `record.sha256`, `sealed/faults.json`, `runner/`,
 `replay-verdicts.json`, `audit/`, the logs), the plan copy they were judged with (`plans/tpk-pool/`, hashes in
-`SOURCE.json`) and the manifest of those runs. `../../campaign/dry-runs.sh` makes the runs, replays each record
+`SOURCE.json`) and two manifests: `manifest-as-run.json`, the one the runs were made with, and `manifest.json`,
+made at this branch for the replay (same image entry; plan and stimulus hashes of this branch).
+`record.sha256` is the tool's list for the whole record and also names the `raw/` files, which are not
+committed (they are in the evidence bundle); `files.sha256` lists the files that are committed.
+`rejudge/` holds the verdicts of a replay of each record with the plan files of this branch (amendment 7):
+equal to `runner/verdicts.json` in every vector. `../../campaign/dry-runs.sh` makes the runs, replays each record
 (`fth run --replay-record`), builds the set (`../../campaign/mk-vectors.py`) and applies the vector rule:
 
 ```sh
-python3 $T/venue/check-vectors.py $T/../../vectors     # one line per vector; exit 1 on a mismatch or an empty set
+python3 $T/../../campaign/check-vectors.py $T/../../vectors     # one line per vector; exit 1 on a mismatch or an empty set
 ```
 
 `fth vectors` (v0.1.29) cannot judge a plan whose pass rules live in the tests; `check-vectors.py` applies its rule
 (`fth.vectors.verdict_problems`, imported unmodified) to the replay verdicts.
+To repeat the gate on the committed records (no bench; from a campaign root, tools installed as above):
+
+```sh
+V=$T/../../vectors
+for n in 1 2 3 4 5; do fth run --replay-record $V/dry-$n/record --run-dir replay/dry-$n --manifest $V/manifest.json --plan $T/plan.json --bench $T/bench-pico2.json --tests $T; done
+for n in 1 2 3 4 5; do cmp replay/dry-$n/runner/verdicts.json $V/dry-$n/rejudge/verdicts.json && echo "dry-$n equal"; done
+```
 The campaign scripts sit outside this directory (`../../campaign/`) because they name the planted fault of each
 run, which the stimulus directory must not (`fth verify-plan` refuses it).
 
@@ -120,11 +247,12 @@ run, which the stimulus directory must not (`fth verify-plan` refuses it).
   image carries the manifest's describe strings is judged by the tooling, not by this test: `fth manifest`
   refuses an image without them and `fth audit` compares the dictionary versions with the manifest.
 - **Two packets, one sample.** `TpkA` (60) and `TpkB` (61) both carry `cmdDisp.CommandsDispatched`. With both
-  enabled (L0-2, L7-1) each change is downlinked twice with one time tag; the recorder writes the lines one after
-  the other and the tool's export collapses adjacent identical lines, so the window holds one sample per change.
-  The helper does not collapse equal samples: a second copy that is not adjacent (a held packet released later
-  with its old time tag, as in the teardown windows of L2-1 and L2-2) stays a second row, and in a judged
-  window it would be a step of 0 and FAIL. `test/kat` pins both.
+  enabled (L0-2, L7-1) each change is downlinked twice with one time tag. The tool's export collapses the two
+  copies when their recorder lines are adjacent. They need not be: on `Ref` the channel is written on the
+  rate-group thread while the packetizer sends on its own, so one copy can leave a tick after the other, and a
+  held packet released later carries its old time tag (teardown windows of L2-1 and L2-2). The helper therefore
+  drops a sample equal in time and value to the one before it (plan amendment 7) and nothing else: an equal
+  value with a later time is a step of 0 and FAIL. `test/kat` pins both.
 - **State a planted fault leaves behind.** A test's teardown clears only the test's own override.
   `first_packet_also_held` leaves packet 60 held from the setup of L2-1 until the teardown of L2-2 (L2-2 holds
   packet 60 itself). `second_packet_also_held` leaves packet 61 held from the setup of L2-2 through L6-1 until
