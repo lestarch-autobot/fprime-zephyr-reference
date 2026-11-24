@@ -1,0 +1,29 @@
+{
+  "deployment": "CdhCore",
+  "dictionary": "zref/build-artifacts/zephyr/fprime-zephyr-deployment/dict/ReferenceDeploymentTopologyDictionary.json",
+  "serial": "E6647C74036F8730",
+  "vars": {
+    "serial": "E6647C74036F8730",
+    "uart": "/dev/pico2",
+    "baud": "115200",
+    "zmq": "ipc:///tmp/fth-tpk-pool-in ipc:///tmp/fth-tpk-pool-out",
+    "venue": "zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/venue"
+  },
+  "flash": "{venue}/flash-pico2.sh {serial} {image} {uart}",
+  "dump": "{venue}/readback-pico2.sh {serial} {image} {readback} {uart}",
+  "gds": "fprime-gds -n --dictionary {dictionary} --communication-selection uart --uart-device {uart} --uart-baud {baud} --gui none --zmq-transport {zmq} --logs {logs}",
+  "recorder": "fprime-cli events --dictionary {dictionary} --zmq-transport {zmq} --logs {logs}",
+  "send": "fprime-cli command-send --dictionary {dictionary} --zmq-transport {zmq} --logs {logs} {command} --arguments {args}",
+  "timeouts": {
+    "flash_s": 300,
+    "gds_start_s": 8,
+    "recorder_start_s": 3,
+    "send_s": 60,
+    "command_s": 30
+  },
+  "provenance": {
+    "serial_re": "serial=(\\S+)",
+    "note": "this OpenOCD build prints the CMSIS-DAP probe serial as `serial=<id>` on its interface line"
+  },
+  "notes": "Venue B: Raspberry Pi Pico 2 (RP2350) on a bench host, console on the board's USB CDC port, flash and read-back through a Raspberry Pi Debug Probe with OpenOCD. `deployment` is the instance prefix fth puts before the plan's command names. No `boot_event`: the plan commands `version.VERSION`, so no version event is logged once per boot only; a reboot shows as an FSW-time backstep. Relative paths only: run from the campaign root on the bench host, which holds `zref/` (this repository, built). `serial` is the debug probe's USB serial."
+}
