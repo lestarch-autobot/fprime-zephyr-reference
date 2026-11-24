@@ -45,9 +45,22 @@ fth run --dry-run --run-dir runs/dry-0 --manifest manifest.json --plan $T/plan.j
 
 ## Whole plan on the bench (development, unsealed)
 
+The bench host is shared with a GitHub Actions runner (user `fprime`) whose jobs flash the same Pico 2.
+`fuser` does not see that, so every run on the bench, a run for record included, is bracketed by the guard:
+
 ```sh
+fuser /dev/pico2 /dev/pico2-probe && exit 9          # nothing may hold the console or the probe
+$T/venue/bench-guard.sh pre runs/dry-1.guard /dev/pico2 || exit 9
 fth run --unsealed --run-dir runs/dry-1 --manifest manifest.json --plan $T/plan.json --bench $T/bench-pico2.json --tests $T
+$T/venue/bench-guard.sh post runs/dry-1.guard /dev/pico2
 ```
+
+`pre` requires that no `Runner.Worker` process runs and notes the newest `Worker_*` log of the runner and the
+time. `post` requires again no worker, the same newest log, and exactly the run's own two re-enumerations of
+the console in the kernel log (the resets after the flash and after the read-back). If either step prints
+`GUARD TRIPPED` the run is bench-invalid: keep its record, wait for the worker to exit, and run again
+(the run flashes and reads back the image itself). The guard needs `sudo -n ls` on the runner's `_diag`
+directory and read access to `dmesg`. It does not stop or touch the runner.
 
 `fth run` flashes the image (`venue/flash-pico2.sh`, read back with `venue/readback-pico2.sh`, MATCH/MISMATCH in
 `record/raw/flash.log`), the GDS and one recorder, runs the six tests in plan order and stops the GDS.
