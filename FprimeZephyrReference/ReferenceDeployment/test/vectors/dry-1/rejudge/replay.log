@@ -1,0 +1,1 @@
+run dry-1: record d981931a -> runner/verdicts.json (pytest exit 0)
