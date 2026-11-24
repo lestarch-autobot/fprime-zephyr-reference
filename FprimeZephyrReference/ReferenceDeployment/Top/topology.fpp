@@ -92,6 +92,7 @@ module ReferenceDeployment {
       rateGroup1Hz.RateGroupMemberOut[3] -> CdhCore.tlmSend.Run
       rateGroup1Hz.RateGroupMemberOut[4] -> ComCcsds.aggregator.timeout
       rateGroup1Hz.RateGroupMemberOut[5] -> CdhCore.Subtopology.eventsRun
+      rateGroup1Hz.RateGroupMemberOut[6] -> CdhCore.Subtopology.cmdDispRun
     }
 
     connections ReferenceDeployment {
