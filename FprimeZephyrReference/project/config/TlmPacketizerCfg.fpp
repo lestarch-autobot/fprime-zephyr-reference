@@ -5,6 +5,14 @@
 @ The type of an offset within a telemetry packet buffer
 type FwTlmPacketizeOffsetType = U16
 
+@ The type of a packet index stored in the membership pool.
+@ Must represent 0..MAX_PACKETIZER_PACKETS-1.
+type FwTlmPacketizePacketIndexType = U8
+
+@ The type of an index into the membership pool.
+@ Must represent 0..MAX_PACKETIZER_MEMBERSHIPS.
+type FwTlmPacketizePoolIndexType = U16
+
 module Svc {
     @ Configurable enum supporting multiple resampled telemetry sections
     @ Each section creates output indices for each telemetry group
@@ -15,7 +23,7 @@ module Svc {
     }
 
     @ Maximum number of packets the packetizer can be configured with (sizes FPP array types)
-    constant MAX_PACKETIZER_PACKETS = 5
+    constant MAX_PACKETIZER_PACKETS = 7
 
     @ Greatest packet group
     constant MAX_CONFIGURABLE_TLMPACKETIZER_GROUP = 3

@@ -1,7 +1,6 @@
 telemetry packets ReferenceDeploymentPackets {
 
   packet Health id 1 group 1 {
-    CdhCore.cmdDisp.CommandsDispatched
     CdhCore.cmdDisp.CommandsDropped
     ComCcsds.comQueue.comQueueDepth
     ComCcsds.commsBufferManager.HiBuffs
@@ -46,6 +45,14 @@ telemetry packets ReferenceDeploymentPackets {
     comDriver.TxDropCount
   }
 
+  # Test packets of the TPK-POOL system-test plan (test/int/tpk_pool): the one channel with two memberships
+  packet TpkA id 60 group 1 {
+    CdhCore.cmdDisp.CommandsDispatched
+  }
+
+  packet TpkB id 61 group 1 {
+    CdhCore.cmdDisp.CommandsDispatched
+  }
 
 } omit {
   CdhCore.version.CustomVersion11
