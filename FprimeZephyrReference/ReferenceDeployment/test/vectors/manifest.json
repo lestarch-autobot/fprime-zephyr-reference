@@ -8,8 +8,8 @@
   },
   "harness": {
     "path": "zref",
-    "sha": "c2fe3b146a92d8bda3903792c928152681b868cf",
-    "describe": "v4.3.0-19-gc2fe3b1",
+    "sha": "4f3fbad671fc28981eac583970913397c78b3113",
+    "describe": "v4.3.0-21-g4f3fbad",
     "url": "https://github.com/fprime-community/fprime-zephyr-reference",
     "dirty": false
   },
@@ -25,15 +25,15 @@
     {
       "name": "harness",
       "path": "zref",
-      "sha": "c2fe3b146a92d8bda3903792c928152681b868cf",
-      "describe": "v4.3.0-19-gc2fe3b1",
+      "sha": "4f3fbad671fc28981eac583970913397c78b3113",
+      "describe": "v4.3.0-21-g4f3fbad",
       "url": "https://github.com/fprime-community/fprime-zephyr-reference",
       "dirty": false
     }
   ],
   "plan": {
     "path": "zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/plan.json",
-    "sha256": "3f0e3a04388581829dd2ded43514c9bab57eed9e8012e667d202809e1cb7d5aa",
+    "sha256": "5be97bf19932123dd7f63777b4a9967b8608946bf648376d82a5ead7fe14c1d3",
     "revision": "",
     "tests": [
       "L0-1",
@@ -76,7 +76,7 @@
   "stimulus": {
     "path": "zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool",
     "repo": "harness",
-    "sha": "c2fe3b146a92d8bda3903792c928152681b868cf",
+    "sha": "4f3fbad671fc28981eac583970913397c78b3113",
     "files": {
       "planted_faults.py": "3d3f178bed530e883324b421c9fd898e242d7ebd1366014c538d58fec0725a9f",
       "test_L0_1.py": "0398b1809ca95a48e92a9857921dbde0af085586df3a54aa8b657c90f984f622",
@@ -91,7 +91,7 @@
     {
       "deployment": "ReferenceDeployment",
       "path": "zref/build-artifacts/zephyr.bin",
-      "sha256": "644e45d22e1cf6bd8607dfb9620b344208bfba4661366ff76f047de4db134ed5",
+      "sha256": "2bd269cffa0baf2eca4db42b27c0537e825ae01c8b4a20ce2573ad883648e7d8",
       "build_cmd": [],
       "version_check": "all repo describe strings found in image"
     }
