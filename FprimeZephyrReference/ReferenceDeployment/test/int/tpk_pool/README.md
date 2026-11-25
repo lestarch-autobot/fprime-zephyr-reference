@@ -44,7 +44,7 @@ never stop or touch the runner.
 # The repositories are private: git needs a credential for github.com/lestarch-autobot (a token with read access,
 # e.g. `gh auth setup-git` or a credential helper), on the build host and for the `pip install git+https://` line
 # on the bench host.
-mkdir tpk-campaign && cd tpk-campaign
+mkdir tpk-campaign && cd tpk-campaign              # a new, empty directory; not the one of venue A
 git clone -b tlm-packetizer-membership-pool-harness https://github.com/lestarch-autobot/fprime-zephyr-reference zref
 git clone -b v0.1.29 https://github.com/lestarch-autobot/fprime-testing-harness fth    # the tool, for the bench host
 git -C fth rev-parse HEAD; git -C fth status --short    # fb09828019fcb8d13aa16f8b26c915889ec369fb, no status line
@@ -121,7 +121,8 @@ fth manifest --uut zref/lib/fprime --harness zref --plan $T/plan.json --menu $T/
    About 25 minutes.
 
 ```sh
-sh zref/FprimeZephyrReference/ReferenceDeployment/test/campaign/dry-runs.sh all 2>&1 | tee venue-b.out
+# detached, so that a dropped SSH session cannot interrupt a flash; follow it with: tail -f venue-b.out
+setsid nohup sh zref/FprimeZephyrReference/ReferenceDeployment/test/campaign/dry-runs.sh all > venue-b.out 2>&1 &
 cat runs/dry-?.guard.out                           # per run: one "GUARD pre" and one "GUARD post: ok" line
 ls runs/invalid 2>/dev/null                        # bench-invalid attempts, to be listed in the run report
 ```
@@ -139,7 +140,7 @@ GUARD post: ok (no worker; newest worker log Worker_<time>-utc.log; 2 re-enumera
   L0-1 PASS []          (and L0-2, L2-1, L2-2, L6-1, L7-1: PASS [])
   audit rc=0 FAILED-lines=0 DIVERGENCE=0
   replay equal
-MATCH: flash holds zref/build-artifacts/zephyr.bin (310420 bytes)
+MATCH: flash holds zref/build-artifacts/zephyr.bin (<size of zephyr.bin from step 1> bytes)
 dry-2: pytest exit 1; L2-1 FAIL ['<V>'], the five others PASS []; audit rc=1 FAILED-lines=3 DIVERGENCE=0; replay equal
 dry-3: as dry-2 with L2-2 FAIL ['<V>']
 dry-4: L6-1 FAIL ['event cmdDisp.OpCodeError count == 1', 'event tlmSend.PacketNotFound(packetId=999) count == 1', 'event tlmSend.PacketSent count == 0']
