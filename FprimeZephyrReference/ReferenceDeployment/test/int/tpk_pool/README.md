@@ -15,17 +15,18 @@ changed by anything here. Tooling: `fprime-testing-harness` v0.1.29 (`fth`), `fp
 
 All paths in `bench-*.json` are relative to the campaign root, the directory every command below is run from.
 
-Venue B (`bench-pico2.json`): `<root>/zref/` is this repository on branch `tlm-packetizer-membership-pool-harness`,
-with `lib/fprime` at the unit under test. It is the image source and holds the tests: the manifest names it `project` and its `lib/fprime` as `uut`.
+Venue B (`bench-pico2.json`): `<root>/uut/` is this repository on branch `tlm-packetizer-membership-pool-harness`,
+with `lib/fprime` at the unit under test. It is the image source and holds the tests: the manifest names it `project` and its `lib/fprime` as `uut` and `fprime`.
+`fth rfr` accepts only paths under `uut/`, `harness/` and `rfr/` (its output), so the clone must have this name.
 `<root>/harness/` is the pinned `fprime-testing-harness` checkout that `fth` is installed from: the manifest names
 it `harness`, the shape the run for record uses (plan `image_version.harness_in_image` is false: the tool is not in
 the image):
 
 ```sh
-(cd zref && fprime-util generate -DBOARD=rpi_pico2/rp2350a/m33 && fprime-util build)
-T=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
-I=zref/build-artifacts/zephyr.bin
-fth manifest --uut zref/lib/fprime --harness harness --repo project=zref --repo fprime=zref/lib/fprime --plan $T/plan.json --menu $T/faults-menu.json --bench $T/bench-pico2.json --tests $T --image ReferenceDeployment=$I -o manifest.json
+(cd uut && fprime-util generate -DBOARD=rpi_pico2/rp2350a/m33 && fprime-util build)
+T=uut/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
+I=uut/build-artifacts/zephyr.bin
+fth manifest --uut uut/lib/fprime --harness harness --repo project=uut --repo fprime=uut/lib/fprime --plan $T/plan.json --menu $T/faults-menu.json --bench $T/bench-pico2.json --tests $T --image ReferenceDeployment=$I -o manifest.json
 ```
 
 Venue A (`Ref` on a Linux host) keeps the same plan and stimulus files beside the `Ref` deployment
@@ -45,13 +46,13 @@ never stop or touch the runner.
 
 ```sh
 # The repositories are private: git needs a credential for github.com/lestarch-autobot (a token with read access,
-# e.g. `gh auth setup-git` or a credential helper), on the build host and for the `pip install git+https://` line
-# on the bench host.
-mkdir tpk-campaign && cd tpk-campaign              # a new, empty directory; not the one of venue A
-git clone -b tlm-packetizer-membership-pool-harness https://github.com/lestarch-autobot/fprime-zephyr-reference zref
+# e.g. `gh auth setup-git` or a credential helper), on the build host only (the bench host gets copies).
+D=tpk-campaign-b-$(date +%Y%m%d-%H%M); [ ! -e $D ] || { echo "$D exists: wait a minute, never reuse a campaign directory"; exit 1; }
+mkdir $D && cd $D                                  # a new, dated directory; not the one of venue A
+git clone -b tlm-packetizer-membership-pool-harness https://github.com/lestarch-autobot/fprime-zephyr-reference uut
 git clone -b v0.1.29 https://github.com/lestarch-autobot/fprime-testing-harness harness    # the tool, for the bench host
 git -C harness rev-parse HEAD; git -C harness status --short    # fb09828019fcb8d13aa16f8b26c915889ec369fb, no status line
-cd zref
+cd uut
 git rev-parse HEAD                                 # the harness head named in the hand-off; stop if not
 git submodule update --init lib/fprime-zephyr lib/zephyr-workspace/zephyr lib/fprime
 (cd lib/fprime && git submodule update --init --recursive && git rev-parse HEAD)     # 14dc2e3077b1a5b108a067805abac48c1f765be9
@@ -62,7 +63,7 @@ python3 -m venv ../zvenv && . ../zvenv/bin/activate && pip install -r requiremen
 # (HTTP 403). Then: west sdk install -t arm-zephyr-eabi --personal-access-token <any GitHub token>
 export ZEPHYR_SDK_INSTALL_DIR=$(ls -d ~/zephyr-sdk-* | tail -1)
 git status --short                                 # empty: the image carries `git describe` of this tree
-(fprime-util generate -DBOARD=rpi_pico2/rp2350a/m33 && fprime-util build -j4) > ../zref-build.log 2>&1; echo "build rc=$?"
+(fprime-util generate -DBOARD=rpi_pico2/rp2350a/m33 && fprime-util build -j4) > ../uut-build.log 2>&1; echo "build rc=$?"
 grep -E "MEMBERSHIPS = |CHANNELS = |needs MAX" build-fprime-automatic-zephyr/FprimeZephyrReference/ReferenceDeployment/ReferenceDeploymentTlmPacketizerSizing.cpp
 git describe --tags --always; ls -l build-artifacts/zephyr.bin; sha256sum build-artifacts/zephyr.bin
 cd ..
@@ -84,30 +85,32 @@ static constexpr FwSizeType CHANNELS = 30;
    `lib/zephyr-workspace/zephyr`) must be copied or `fth manifest` refuses the tree as changed.
 
 ```sh
-git -C zref status --short                         # no line (build host)
-rsync -a --delete --exclude build-fprime-automatic-zephyr --exclude /zref/lib/zephyr-workspace/bootloader \
-  --exclude /zref/lib/zephyr-workspace/modules --exclude /zref/lib/zephyr-workspace/tools zref harness devin@<pi-ci-1>:tpk-campaign-run/
-ssh devin@<pi-ci-1> 'cd tpk-campaign-run && git -C zref status --short && git -C harness status --short && git -C zref rev-parse HEAD'
+git -C uut status --short                         # no line (build host)
+R=tpk-campaign-run-$(date +%Y%m%d-%H%M)           # a new, dated directory on the bench host; note the name
+ssh devin@<pi-ci-1> "test ! -e $R" || { echo "$R exists on the bench host: never copy into an existing directory, take a new dated name"; exit 1; }
+rsync -a --delete --exclude build-fprime-automatic-zephyr --exclude /uut/lib/zephyr-workspace/bootloader \
+  --exclude /uut/lib/zephyr-workspace/modules --exclude /uut/lib/zephyr-workspace/tools uut harness devin@<pi-ci-1>:$R/
+ssh devin@<pi-ci-1> "cd $R && git -C uut status --short && git -C harness status --short && git -C uut rev-parse HEAD"
 ```
 
    Expected: only the harness head; a status line means the copy is not the commit, stop. About 1.1 GB.
 
-3. Bench host: tools and manifest. All further commands are run on the bench host from `~/tpk-campaign-run`.
+3. Bench host: tools and manifest. All further commands are run on the bench host from the dated directory of step 2 (`<R>` below).
 
 ```sh
-cd ~/tpk-campaign-run && mkdir -p runs
+cd ~/<R> && mkdir -p runs
 python3 -m venv venv && . venv/bin/activate
 pip install fprime-gds==4.4.0 -e "harness[test]"     # the copied checkout of v0.1.29, commit fb09828
-python3 -c "import fth.cli, os; print(os.path.realpath(fth.cli.__file__))"    # <home>/tpk-campaign-run/harness/fth/cli.py
+python3 -c "import fth.cli, os; print(os.path.realpath(fth.cli.__file__))"    # <home>/<R>/harness/fth/cli.py
 fth selftest | tail -1                           # selftest ok
-T=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
+T=uut/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
 fth verify-plan $T/plan.json --tests $T          # plan ok: ... 6 tests, 1 helpers, 4 planted faults, 1 waived requirements, 0 warnings
 fth verify-stimulus $T/plan.json --tests $T      # 6 lines MATCH, 0 FAIL
-pytest -q zref/FprimeZephyrReference/ReferenceDeployment/test/kat      # 30 passed
-fth manifest --uut zref/lib/fprime --harness harness --repo project=zref --repo fprime=zref/lib/fprime --plan $T/plan.json --menu $T/faults-menu.json --bench $T/bench-pico2.json --tests $T --image ReferenceDeployment=zref/build-artifacts/zephyr.bin -o manifest.json
+pytest -q uut/FprimeZephyrReference/ReferenceDeployment/test/kat      # 30 passed
+fth manifest --uut uut/lib/fprime --harness harness --repo project=uut --repo fprime=uut/lib/fprime --plan $T/plan.json --menu $T/faults-menu.json --bench $T/bench-pico2.json --tests $T --image ReferenceDeployment=uut/build-artifacts/zephyr.bin -o manifest.json
 ```
 
-   `fth manifest` refuses an image that does not carry the describe strings of `zref` and `zref/lib/fprime`.
+   `fth manifest` refuses an image that does not carry the describe strings of `uut` and `uut/lib/fprime`.
 
 4. Save the image the board holds, if it is to be put back and no saved copy exists. The image the board held
    before this campaign's first flash is on the bench host:
@@ -125,7 +128,7 @@ fth manifest --uut zref/lib/fprime --harness harness --repo project=zref --repo 
 
 ```sh
 # detached, so that a dropped SSH session cannot interrupt a flash; follow it with: tail -f venue-b.out
-setsid nohup sh zref/FprimeZephyrReference/ReferenceDeployment/test/campaign/dry-runs.sh all > venue-b.out 2>&1 &
+setsid nohup sh uut/FprimeZephyrReference/ReferenceDeployment/test/campaign/dry-runs.sh all > venue-b.out 2>&1 &
 cat runs/dry-?.guard.out                           # per run: one "GUARD pre" and one "GUARD post: ok" line
 ls runs/invalid 2>/dev/null                        # bench-invalid attempts, to be listed in the run report
 ```
@@ -143,7 +146,7 @@ GUARD post: ok (no worker; newest worker log Worker_<time>-utc.log; 2 re-enumera
   L0-1 PASS []          (and L0-2, L2-1, L2-2, L6-1, L7-1: PASS [])
   audit rc=0 FAILED-lines=0 DIVERGENCE=0
   replay equal
-MATCH: flash holds zref/build-artifacts/zephyr.bin (<size of zephyr.bin from step 1> bytes)
+MATCH: flash holds uut/build-artifacts/zephyr.bin (<size of zephyr.bin from step 1> bytes)
 dry-2: pytest exit 1; L2-1 FAIL ['<V>'], the five others PASS []; audit rc=1 FAILED-lines=3 DIVERGENCE=0; replay equal
 dry-3: as dry-2 with L2-2 FAIL ['<V>']
 dry-4: L6-1 FAIL ['event cmdDisp.OpCodeError count == 1', 'event tlmSend.PacketNotFound(packetId=999) count == 1', 'event tlmSend.PacketSent count == 0']
@@ -177,13 +180,13 @@ fth unseal --run-dir runs/reh-1 --manifest manifest.json --seed-file seed-unseal
 rm -f seed.txt seed-unseal.txt; grep -c -i "traceback" runs/reh-1.log
 ```
 
-   Expected: `draw rc=0`, both guard lines `rc=0`, `run rc=0` (the sealed run does not show its verdicts; `runs/reh-1.log` names the record), `audit rc=0`, `unseal rc=0`, `0` tracebacks: no tooling error. The verdicts are not evidence of
+   Expected: `draw rc=0`, both guard lines `rc=0`, `run rc=0` (the sealed run does not show its verdicts; `runs/reh-1.log` names the record), `audit rc=0`, `unseal rc=0`, `0` tracebacks: no tooling error. The log line `run reh-1: record <id> ... (pytest exit 1)` is normal when the draw planted a fault (a planted test fails by design) and is not a tooling error; `fth run` itself returns 0. The verdicts are not evidence of
    anything.
 
 7. Put the saved image back, under the same guard, with read-back:
 
 ```sh
-sh zref/FprimeZephyrReference/ReferenceDeployment/test/campaign/restore-pico2.sh /home/devin/tpk-campaign/saved/pico2-before.bin
+sh uut/FprimeZephyrReference/ReferenceDeployment/test/campaign/restore-pico2.sh /home/devin/tpk-campaign/saved/pico2-before.bin
 ```
 
 Expected: `GUARD pre: ...`, `MATCH: flash holds /home/devin/tpk-campaign/saved/pico2-before.bin (4194304 bytes)`,
@@ -228,10 +231,16 @@ UTC time, to `<state file>.out` (`runs/dry-1.guard.out` above): keep it beside t
 that file, or without `GUARD pre` and `GUARD post: ok` in it, is not a guarded run. The guard needs `sudo -n ls` on the runner's `_diag`
 directory and read access to `dmesg`. It does not stop or touch the runner.
 
-A run for record is bracketed in the same way (`fth rfr` flashes and runs inside the bracket):
+A run for record is bracketed in the same way (`fth rfr` flashes and runs inside the bracket). Its campaign root
+is a new dated directory on the bench host holding `uut/` and `harness/` (copied as in step 2, both clean at the
+pins of the package's manifest; no `build-artifacts/` is needed, image and dictionary come from the package), the
+venv of step 3, `rfr-input.zip` and `rfr-input.zip.sha256`. The seed file is chmod 600, at the root (not inside a
+checkout) and is deleted when read; pass it as `--seed-file seed.txt`. `fth rfr rfr-input.zip --dry-run` first: it
+must end `rehearsal OK` (it needs `/dev/pico2` present and held by nobody, and flashes nothing). Stop at the first
+refusal and report it verbatim. Afterwards put the saved image back with `../../campaign/restore-pico2.sh`:
 
 ```sh
-fuser /dev/pico2 /dev/pico2-probe && exit 9
+mkdir -p rfr; fuser /dev/pico2 /dev/pico2-probe && exit 9
 $T/venue/bench-guard.sh pre rfr/<run-id>.guard /dev/pico2 || exit 9
 fth rfr rfr-input.zip --out rfr --run-id <run-id>
 $T/venue/bench-guard.sh post rfr/<run-id>.guard /dev/pico2 <own>     # ship rfr/<run-id>.guard.out with the package

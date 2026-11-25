@@ -4,7 +4,7 @@
 # The image the board held before this campaign's first flash: /home/devin/tpk-campaign/saved/pico2-before.bin
 # on pi-ci-1 (4194304 bytes from 0x10000000, sha256 269aed1a1f73a4a0e14db43b18d430a658159e036e0615ed8893ee79b31c266a).
 set -u
-T=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
+T=uut/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
 img=${1:?usage: restore-pico2.sh <saved image> [probe serial]}; serial=${2:-E6647C74036F8730}
 mkdir -p restore
 fuser /dev/pico2 /dev/pico2-probe && { echo "bench held, stop"; exit 9; }

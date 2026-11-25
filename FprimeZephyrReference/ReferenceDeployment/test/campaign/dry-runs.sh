@@ -2,7 +2,7 @@
 # Venue B (Pico 2) full cycle, run from the campaign root on the bench host: clean run and 4 planted runs, each
 # under the shared-bench guard (at most 3 attempts), audit, replay, vector set, vector rule.
 # The planted fault -> run id mapping lives only here. usage: dry-runs.sh [all | run <n> [plant] | check <n>]
-T=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
+T=uut/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
 A="--manifest manifest.json --plan $T/plan.json --bench $T/bench-pico2.json --tests $T"
 n=${2:-}
 mkdir -p runs
@@ -44,6 +44,6 @@ all)
     sh "$0" check $n
     grep -a -h "MATCH" runs/dry-$n/record/raw/flash.log | cut -c1-100
   done
-  rm -rf vectors && python3 $T/../../campaign/mk-vectors.py runs $T vectors "venue B (Pico 2), fth run --unsealed, zephyr harness $(git -C zref rev-parse --short HEAD)" && cp manifest.json vectors/
+  rm -rf vectors && python3 $T/../../campaign/mk-vectors.py runs $T vectors "venue B (Pico 2), fth run --unsealed, zephyr harness $(git -C uut rev-parse --short HEAD)" && cp manifest.json vectors/
   python3 $T/../../campaign/check-vectors.py vectors; echo "vector rule rc=$?";;
 esac

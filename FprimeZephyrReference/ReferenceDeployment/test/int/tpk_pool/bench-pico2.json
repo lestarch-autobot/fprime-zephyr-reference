@@ -1,13 +1,13 @@
 {
   "deployment": "CdhCore",
-  "dictionary": "zref/build-artifacts/zephyr/fprime-zephyr-deployment/dict/ReferenceDeploymentTopologyDictionary.json",
+  "dictionary": "uut/build-artifacts/zephyr/fprime-zephyr-deployment/dict/ReferenceDeploymentTopologyDictionary.json",
   "serial": "E6647C74036F8730",
   "vars": {
     "serial": "E6647C74036F8730",
     "uart": "/dev/pico2",
     "baud": "115200",
     "zmq": "ipc:///tmp/fth-tpk-pool-in ipc:///tmp/fth-tpk-pool-out",
-    "venue": "zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/venue"
+    "venue": "uut/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/venue"
   },
   "flash": "{venue}/flash-pico2.sh {serial} {image} {uart}",
   "dump": "{venue}/readback-pico2.sh {serial} {image} {readback} {uart}",
@@ -25,5 +25,5 @@
     "serial_re": "serial=(\\S+)",
     "note": "this OpenOCD build prints the CMSIS-DAP probe serial as `serial=<id>` on its interface line"
   },
-  "notes": "Venue B: Raspberry Pi Pico 2 (RP2350) on a bench host, console on the board's USB CDC port, flash and read-back through a Raspberry Pi Debug Probe with OpenOCD. `deployment` is the instance prefix fth puts before the plan's command names. No `boot_event`: the plan commands `version.VERSION`, so no version event is logged once per boot only; a reboot shows as an FSW-time backstep. Relative paths only: run from the campaign root on the bench host, which holds `zref/` (this repository, built). `serial` is the debug probe's USB serial."
+  "notes": "Venue B: Raspberry Pi Pico 2 (RP2350) on a bench host, console on the board's USB CDC port, flash and read-back through a Raspberry Pi Debug Probe with OpenOCD. `deployment` is the instance prefix fth puts before the plan's command names. No `boot_event`: the plan commands `version.VERSION`, so no version event is logged once per boot only; a reboot shows as an FSW-time backstep. Relative paths only: run from the campaign root on the bench host, which holds `uut/` (this repository, built). `serial` is the debug probe's USB serial."
 }
