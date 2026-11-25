@@ -268,10 +268,11 @@ fth audit --run-dir runs/dry-1 --manifest manifest.json --plan $T/plan.json --be
 alone, as the dry runs made them (`vector.json`, `record/` with `record.sha256`, `sealed/faults.json`, `runner/`,
 `replay-verdicts.json`, `audit/`, the logs), the plan copy they were judged with (`plans/tpk-pool/`, hashes in
 `SOURCE.json`) and two manifests: `manifest-as-run.json`, the one the runs were made with, and `manifest.json`,
-made at this branch for the replay (same image entry; plan and stimulus hashes of this branch).
+made at this branch for the replay (stage-3 shape; plan and stimulus hashes of this branch; its image entry is a build at the first
+amendment-9 commit of this branch, which is not the image of the runs).
 `record.sha256` is the tool's list for the whole record and also names the `raw/` files, which are not
 committed (they are in the evidence bundle); `files.sha256` lists the files that are committed.
-`rejudge/` holds the verdicts of a replay of each record with the plan files of this branch (amendment 8),
+`rejudge/` holds the verdicts of a replay of each record with the plan files of this branch (amendment 9, which changes no test, export or pass rule),
 after `fth export --plan` of the record's raw logs with the plan's 60 s reboot limit (the export is byte-equal
 to the committed `channels.jsonl` and `events.jsonl`): verdict and failed checks equal to `runner/verdicts.json` in every vector. `../../campaign/dry-runs.sh` makes the runs, replays each record
 (`fth run --replay-record`), builds the set (`../../campaign/mk-vectors.py`) and applies the vector rule:

@@ -7,10 +7,10 @@
     "dirty": false
   },
   "harness": {
-    "path": "zref",
-    "sha": "4f3fbad671fc28981eac583970913397c78b3113",
-    "describe": "v4.3.0-21-g4f3fbad",
-    "url": "https://github.com/fprime-community/fprime-zephyr-reference",
+    "path": "harness",
+    "sha": "fb09828019fcb8d13aa16f8b26c915889ec369fb",
+    "describe": "v0.1.29",
+    "url": "/home/ubuntu/work/rel/tpk-campaign/harness",
     "dirty": false
   },
   "repos": [
@@ -24,16 +24,32 @@
     },
     {
       "name": "harness",
+      "path": "harness",
+      "sha": "fb09828019fcb8d13aa16f8b26c915889ec369fb",
+      "describe": "v0.1.29",
+      "url": "/home/ubuntu/work/rel/tpk-campaign/harness",
+      "dirty": false
+    },
+    {
+      "name": "project",
       "path": "zref",
-      "sha": "4f3fbad671fc28981eac583970913397c78b3113",
-      "describe": "v4.3.0-21-g4f3fbad",
+      "sha": "b14dba59d756b8b9ea9d7f61ea68877848b2e180",
+      "describe": "v4.3.0-24-gb14dba5",
       "url": "https://github.com/fprime-community/fprime-zephyr-reference",
+      "dirty": false
+    },
+    {
+      "name": "fprime",
+      "path": "zref/lib/fprime",
+      "sha": "14dc2e3077b1a5b108a067805abac48c1f765be9",
+      "describe": "14dc2e307",
+      "url": "https://github.com/lestarch-autobot/fprime.git",
       "dirty": false
     }
   ],
   "plan": {
     "path": "zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool/plan.json",
-    "sha256": "5be97bf19932123dd7f63777b4a9967b8608946bf648376d82a5ead7fe14c1d3",
+    "sha256": "b458a196fefa70bceaeae9eb1151ba2b4c4ea699cf508b75912cba9edae08095",
     "revision": "",
     "tests": [
       "L0-1",
@@ -75,8 +91,8 @@
   ],
   "stimulus": {
     "path": "zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool",
-    "repo": "harness",
-    "sha": "4f3fbad671fc28981eac583970913397c78b3113",
+    "repo": "project",
+    "sha": "b14dba59d756b8b9ea9d7f61ea68877848b2e180",
     "files": {
       "planted_faults.py": "3d3f178bed530e883324b421c9fd898e242d7ebd1366014c538d58fec0725a9f",
       "test_L0_1.py": "0398b1809ca95a48e92a9857921dbde0af085586df3a54aa8b657c90f984f622",
@@ -91,9 +107,9 @@
     {
       "deployment": "ReferenceDeployment",
       "path": "zref/build-artifacts/zephyr.bin",
-      "sha256": "2bd269cffa0baf2eca4db42b27c0537e825ae01c8b4a20ce2573ad883648e7d8",
+      "sha256": "e1c0506e2912a4f917f959f41041765a4bf6b986947582ca3507042d3958c9b4",
       "build_cmd": [],
-      "version_check": "all repo describe strings found in image"
+      "version_check": "all repo describe strings found in image (harness exempt: the plan declares image_version.harness_in_image false)"
     }
   ],
   "menu": {
@@ -178,5 +194,6 @@
     "sha256": "84ec2d83aca3a39b5c08b7fd1a630f4deac8038fff0629c6629f2230424a1e5e"
   },
   "toolchain": {},
+  "harness_in_image": false,
   "no_version_check": ""
 }
