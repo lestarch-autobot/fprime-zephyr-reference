@@ -41,41 +41,62 @@ never stop or touch the runner.
 1. Build host: clone and build (`west` fetches the Zephyr workspace and the ARM SDK; about 30 minutes).
 
 ```sh
+# The repositories are private: git needs a credential for github.com/lestarch-autobot (a token with read access,
+# e.g. `gh auth setup-git` or a credential helper), on the build host and for the `pip install git+https://` line
+# on the bench host.
 mkdir tpk-campaign && cd tpk-campaign
 git clone -b tlm-packetizer-membership-pool-harness https://github.com/lestarch-autobot/fprime-zephyr-reference zref
+git clone -b v0.1.29 https://github.com/lestarch-autobot/fprime-testing-harness fth    # the tool, for the bench host
+git -C fth rev-parse HEAD; git -C fth status --short    # fb09828019fcb8d13aa16f8b26c915889ec369fb, no status line
 cd zref
+git rev-parse HEAD                                 # the harness head named in the hand-off; stop if not
 git submodule update --init lib/fprime-zephyr lib/zephyr-workspace/zephyr lib/fprime
 (cd lib/fprime && git submodule update --init --recursive && git rev-parse HEAD)     # 14dc2e3077b1a5b108a067805abac48c1f765be9
 python3 -m venv ../zvenv && . ../zvenv/bin/activate && pip install -r requirements.txt
 (cd lib/zephyr-workspace && west update -n -o=--depth=1 && west zephyr-export)
 (cd lib/zephyr-workspace/zephyr && west sdk install -t arm-zephyr-eabi)               # into ~/zephyr-sdk-<version>
+# `west sdk install` asks the GitHub API for the SDK release; without a token it can fail on the API rate limit
+# (HTTP 403). Then: west sdk install -t arm-zephyr-eabi --personal-access-token <any GitHub token>
 export ZEPHYR_SDK_INSTALL_DIR=$(ls -d ~/zephyr-sdk-* | tail -1)
 git status --short                                 # empty: the image carries `git describe` of this tree
-fprime-util generate -DBOARD=rpi_pico2/rp2350a/m33 && fprime-util build -j4 2>&1 | grep "needs MAX_PACKETIZER"
+(fprime-util generate -DBOARD=rpi_pico2/rp2350a/m33 && fprime-util build -j4) > ../zref-build.log 2>&1; echo "build rc=$?"
+grep -E "MEMBERSHIPS = |CHANNELS = |needs MAX" build-fprime-automatic-zephyr/FprimeZephyrReference/ReferenceDeployment/ReferenceDeploymentTlmPacketizerSizing.cpp
 git describe --tags --always; ls -l build-artifacts/zephyr.bin; sha256sum build-artifacts/zephyr.bin
 cd ..
 ```
 
-Expected from the build (the sizing check of the unit under test):
+Expected: `build rc=0`, and from the generated sizing check of the unit under test (its `static_assert`
+messages are compiled, not printed, when the build passes):
 
 ```text
-Packet set ReferenceDeploymentPackets needs MAX_PACKETIZER_MEMBERSHIPS >= 31
-Packet set ReferenceDeploymentPackets needs MAX_PACKETIZER_CHANNELS >= 30 (30 listed in packets; 42 omitted not counted, FPRIME_TLM_PACKETIZER_OMIT_LIST is OFF)
+static constexpr FwSizeType MEMBERSHIPS = 31;
+static constexpr FwSizeType CHANNELS = 30;
+              "Packet set ReferenceDeploymentPackets needs MAX_PACKETIZER_MEMBERSHIPS >= 31");
+              "Packet set ReferenceDeploymentPackets needs MAX_PACKETIZER_CHANNELS >= 30 (30 listed in packets; 42 omitted not counted, FPRIME_TLM_PACKETIZER_OMIT_LIST is OFF)");
 ```
 
-2. Copy the built tree to the bench host, with its `.git` directories and `build-artifacts/` (image and
-   dictionary), without the Zephyr workspace:
+2. Copy the built tree and the tool to the bench host (which has no credential for the repositories), with
+   their `.git` directories and `build-artifacts/` (image and dictionary). Only untracked parts of the Zephyr
+   workspace are left out; the tracked ones (`.west/config`, `lib/zephyr-workspace/.west/config`, the submodule
+   `lib/zephyr-workspace/zephyr`) must be copied or `fth manifest` refuses the tree as changed.
 
 ```sh
-rsync -a --delete --exclude build-fprime-automatic-zephyr --exclude lib/zephyr-workspace --exclude .west zref devin@<pi-ci-1>:tpk-campaign-run/
+git -C zref status --short                         # no line (build host)
+rsync -a --delete --exclude build-fprime-automatic-zephyr --exclude /zref/lib/zephyr-workspace/bootloader \
+  --exclude /zref/lib/zephyr-workspace/modules --exclude /zref/lib/zephyr-workspace/tools zref fth devin@<pi-ci-1>:tpk-campaign-run/
+ssh devin@<pi-ci-1> 'cd tpk-campaign-run && git -C zref status --short && git -C fth status --short && git -C zref rev-parse HEAD'
 ```
+
+   Expected: only the harness head; a status line means the copy is not the commit, stop. About 1.1 GB.
 
 3. Bench host: tools and manifest. All further commands are run on the bench host from `~/tpk-campaign-run`.
 
 ```sh
 cd ~/tpk-campaign-run && mkdir -p runs
 python3 -m venv venv && . venv/bin/activate
-pip install fprime-gds==4.4.0 pytest git+https://github.com/lestarch-autobot/fprime-testing-harness@v0.1.29   # fth; commit fb09828
+pip install fprime-gds==4.4.0 -e "fth[test]"     # the copied checkout of v0.1.29, commit fb09828
+python3 -c "import fth.cli, os; print(os.path.realpath(fth.cli.__file__))"    # <home>/tpk-campaign-run/fth/fth/cli.py
+fth selftest | tail -1                           # selftest ok
 T=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
 fth verify-plan $T/plan.json --tests $T          # plan ok: ... 6 tests, 1 helpers, 4 planted faults, 1 waived requirements, 0 warnings
 fth verify-stimulus $T/plan.json --tests $T      # 6 lines MATCH, 0 FAIL
@@ -102,6 +123,7 @@ fth manifest --uut zref/lib/fprime --harness zref --plan $T/plan.json --menu $T/
 ```sh
 sh zref/FprimeZephyrReference/ReferenceDeployment/test/campaign/dry-runs.sh all 2>&1 | tee venue-b.out
 cat runs/dry-?.guard.out                           # per run: one "GUARD pre" and one "GUARD post: ok" line
+ls runs/invalid 2>/dev/null                        # bench-invalid attempts, to be listed in the run report
 ```
 
 Expected in `venue-b.out`, per run (`<V>` is the check name `cmdDisp.CommandsDispatched tracks
