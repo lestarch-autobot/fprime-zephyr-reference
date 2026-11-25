@@ -177,8 +177,7 @@ fth unseal --run-dir runs/reh-1 --manifest manifest.json --seed-file seed-unseal
 rm -f seed.txt seed-unseal.txt; grep -c -i "traceback" runs/reh-1.log
 ```
 
-   Expected: `draw rc=0`, both guard lines `rc=0`, `run rc=1` (at least one test is planted, so the run fails by
-   design), `audit rc=0`, `unseal rc=0`, `0` tracebacks: no tooling error. The verdicts are not evidence of
+   Expected: `draw rc=0`, both guard lines `rc=0`, `run rc=0` (the sealed run does not show its verdicts; `runs/reh-1.log` names the record), `audit rc=0`, `unseal rc=0`, `0` tracebacks: no tooling error. The verdicts are not evidence of
    anything.
 
 7. Put the saved image back, under the same guard, with read-back:
