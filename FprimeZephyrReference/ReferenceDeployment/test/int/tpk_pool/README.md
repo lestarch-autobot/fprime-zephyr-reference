@@ -16,13 +16,16 @@ changed by anything here. Tooling: `fprime-testing-harness` v0.1.29 (`fth`), `fp
 All paths in `bench-*.json` are relative to the campaign root, the directory every command below is run from.
 
 Venue B (`bench-pico2.json`): `<root>/zref/` is this repository on branch `tlm-packetizer-membership-pool-harness`,
-with `lib/fprime` at the unit under test. It is both the image source and the harness checkout:
+with `lib/fprime` at the unit under test. It is the image source and holds the tests: the manifest names it `project` and its `lib/fprime` as `uut`.
+`<root>/harness/` is the pinned `fprime-testing-harness` checkout that `fth` is installed from: the manifest names
+it `harness`, the shape the run for record uses (plan `image_version.harness_in_image` is false: the tool is not in
+the image):
 
 ```sh
 (cd zref && fprime-util generate -DBOARD=rpi_pico2/rp2350a/m33 && fprime-util build)
 T=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
 I=zref/build-artifacts/zephyr.bin
-fth manifest --uut zref/lib/fprime --harness zref --plan $T/plan.json --menu $T/faults-menu.json --bench $T/bench-pico2.json --tests $T --image ReferenceDeployment=$I -o manifest.json
+fth manifest --uut zref/lib/fprime --harness harness --repo project=zref --repo fprime=zref/lib/fprime --plan $T/plan.json --menu $T/faults-menu.json --bench $T/bench-pico2.json --tests $T --image ReferenceDeployment=$I -o manifest.json
 ```
 
 Venue A (`Ref` on a Linux host) keeps the same plan and stimulus files beside the `Ref` deployment
@@ -46,8 +49,8 @@ never stop or touch the runner.
 # on the bench host.
 mkdir tpk-campaign && cd tpk-campaign              # a new, empty directory; not the one of venue A
 git clone -b tlm-packetizer-membership-pool-harness https://github.com/lestarch-autobot/fprime-zephyr-reference zref
-git clone -b v0.1.29 https://github.com/lestarch-autobot/fprime-testing-harness fth    # the tool, for the bench host
-git -C fth rev-parse HEAD; git -C fth status --short    # fb09828019fcb8d13aa16f8b26c915889ec369fb, no status line
+git clone -b v0.1.29 https://github.com/lestarch-autobot/fprime-testing-harness harness    # the tool, for the bench host
+git -C harness rev-parse HEAD; git -C harness status --short    # fb09828019fcb8d13aa16f8b26c915889ec369fb, no status line
 cd zref
 git rev-parse HEAD                                 # the harness head named in the hand-off; stop if not
 git submodule update --init lib/fprime-zephyr lib/zephyr-workspace/zephyr lib/fprime
@@ -83,8 +86,8 @@ static constexpr FwSizeType CHANNELS = 30;
 ```sh
 git -C zref status --short                         # no line (build host)
 rsync -a --delete --exclude build-fprime-automatic-zephyr --exclude /zref/lib/zephyr-workspace/bootloader \
-  --exclude /zref/lib/zephyr-workspace/modules --exclude /zref/lib/zephyr-workspace/tools zref fth devin@<pi-ci-1>:tpk-campaign-run/
-ssh devin@<pi-ci-1> 'cd tpk-campaign-run && git -C zref status --short && git -C fth status --short && git -C zref rev-parse HEAD'
+  --exclude /zref/lib/zephyr-workspace/modules --exclude /zref/lib/zephyr-workspace/tools zref harness devin@<pi-ci-1>:tpk-campaign-run/
+ssh devin@<pi-ci-1> 'cd tpk-campaign-run && git -C zref status --short && git -C harness status --short && git -C zref rev-parse HEAD'
 ```
 
    Expected: only the harness head; a status line means the copy is not the commit, stop. About 1.1 GB.
@@ -94,17 +97,17 @@ ssh devin@<pi-ci-1> 'cd tpk-campaign-run && git -C zref status --short && git -C
 ```sh
 cd ~/tpk-campaign-run && mkdir -p runs
 python3 -m venv venv && . venv/bin/activate
-pip install fprime-gds==4.4.0 -e "fth[test]"     # the copied checkout of v0.1.29, commit fb09828
-python3 -c "import fth.cli, os; print(os.path.realpath(fth.cli.__file__))"    # <home>/tpk-campaign-run/fth/fth/cli.py
+pip install fprime-gds==4.4.0 -e "harness[test]"     # the copied checkout of v0.1.29, commit fb09828
+python3 -c "import fth.cli, os; print(os.path.realpath(fth.cli.__file__))"    # <home>/tpk-campaign-run/harness/fth/cli.py
 fth selftest | tail -1                           # selftest ok
 T=zref/FprimeZephyrReference/ReferenceDeployment/test/int/tpk_pool
 fth verify-plan $T/plan.json --tests $T          # plan ok: ... 6 tests, 1 helpers, 4 planted faults, 1 waived requirements, 0 warnings
 fth verify-stimulus $T/plan.json --tests $T      # 6 lines MATCH, 0 FAIL
 pytest -q zref/FprimeZephyrReference/ReferenceDeployment/test/kat      # 30 passed
-fth manifest --uut zref/lib/fprime --harness zref --plan $T/plan.json --menu $T/faults-menu.json --bench $T/bench-pico2.json --tests $T --image ReferenceDeployment=zref/build-artifacts/zephyr.bin -o manifest.json
+fth manifest --uut zref/lib/fprime --harness harness --repo project=zref --repo fprime=zref/lib/fprime --plan $T/plan.json --menu $T/faults-menu.json --bench $T/bench-pico2.json --tests $T --image ReferenceDeployment=zref/build-artifacts/zephyr.bin -o manifest.json
 ```
 
-   `fth manifest` refuses an image that does not carry the describe strings of both trees.
+   `fth manifest` refuses an image that does not carry the describe strings of `zref` and `zref/lib/fprime`.
 
 4. Save the image the board holds, if it is to be put back and no saved copy exists. The image the board held
    before this campaign's first flash is on the bench host:
@@ -154,7 +157,31 @@ vector rule rc=0
    still show no DIVERGENCE. Only the clean run's audit ends ok (`runs/dry-1/auditor/`, table
    `diff-runner-replay.md`). `fth dev-campaign` is not part of this venue (no on-target coverage).
 
-6. Put the saved image back, under the same guard, with read-back:
+6. Stage-3 rehearsal: a REHEARSAL, not a record. The run-for-record commands once, under the same guard, with a
+   throwaway seed that is never printed (`fth draw` deletes the file it reads, so a copy is kept for
+   `fth unseal`), run id `reh-1`. Start it only when no CI job is running; if `GUARD post` is not `ok`, the
+   rehearsal is bench-invalid: move `runs/reh-1*` to `runs/invalid/` and repeat from the first line.
+
+```sh
+A="--manifest manifest.json --plan $T/plan.json --bench $T/bench-pico2.json --tests $T"
+(umask 077; head -c 32 /dev/urandom | base64 > seed.txt; cp seed.txt seed-unseal.txt)
+fth draw --manifest manifest.json --run-dir runs/reh-1 --seed-file seed.txt > runs/reh-1.log 2>&1; echo "draw rc=$?"
+while pgrep -u fprime -f Runner.Worker >/dev/null; do sleep 20; done
+fuser /dev/pico2 /dev/pico2-probe && echo "bench held, stop"
+$T/venue/bench-guard.sh pre runs/reh-1.guard /dev/pico2; echo "guard pre rc=$?"        # stop unless 0
+rm -f /tmp/fth-tpk-pool-*
+setsid -w nohup fth run --run-dir runs/reh-1 $A >> runs/reh-1.log 2>&1; echo "run rc=$?"
+$T/venue/bench-guard.sh post runs/reh-1.guard /dev/pico2; echo "guard post rc=$?"
+fth audit --run-dir runs/reh-1 $A >> runs/reh-1.log 2>&1; echo "audit rc=$?"
+fth unseal --run-dir runs/reh-1 --manifest manifest.json --seed-file seed-unseal.txt -o runs/reh-1/unseal.md >> runs/reh-1.log 2>&1; echo "unseal rc=$?"
+rm -f seed.txt seed-unseal.txt; grep -c -i "traceback" runs/reh-1.log
+```
+
+   Expected: `draw rc=0`, both guard lines `rc=0`, `run rc=1` (at least one test is planted, so the run fails by
+   design), `audit rc=0`, `unseal rc=0`, `0` tracebacks: no tooling error. The verdicts are not evidence of
+   anything.
+
+7. Put the saved image back, under the same guard, with read-back:
 
 ```sh
 sh zref/FprimeZephyrReference/ReferenceDeployment/test/campaign/restore-pico2.sh /home/devin/tpk-campaign/saved/pico2-before.bin
